@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f6f7f9">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Event Check">
+  <link rel="manifest" href="./manifest.json">
+  <link rel="apple-touch-icon" href="./icons/icon-192.png">
+  <title>Event Checklist</title>
+  <style>
+    :root { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #1d2433; background: #f5f6f8; }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 20px; }
+    .app { max-width: 980px; margin: 0 auto; }
+    header { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:18px; }
+    h1 { margin:0; font-size:1.7rem; } .sub { color:#687083; margin:5px 0 0; font-size:.92rem; }
+    .pill { background:#e5f4ea; color:#176c3a; padding:6px 10px; border-radius:999px; font-size:.8rem; font-weight:700; }
+    .panel { background:white; border:1px solid #e1e5eb; border-radius:16px; padding:18px; margin-bottom:16px; box-shadow:0 3px 12px #16203308; }
+    .stats { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; }
+    .stat { background:#f7f8fa; border-radius:12px; padding:13px; min-width:0; }
+    .stat .label { color:#687083; font-size:.8rem; margin-bottom:7px; }
+    .stat .value { font-weight:750; font-size:clamp(1.05rem,2.8vw,1.55rem); overflow-wrap:anywhere; }
+    .progress { height:8px; background:#e6e9ef; border-radius:20px; overflow:hidden; margin-top:14px; }
+    .progress > div { height:100%; width:0; background:#23834d; transition:width .2s; }
+    h2 { font-size:1.1rem; margin:0 0 14px; }
+    .form-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+    label { display:block; color:#4c5568; font-size:.84rem; }
+    input, select, button { font:inherit; }
+    input, select { display:block; width:100%; margin-top:6px; padding:10px 11px; border:1px solid #ccd2dc; border-radius:9px; background:white; color:#1d2433; min-height:42px; }
+    input:focus, select:focus { outline:2px solid #9fc4ff; border-color:#477fd1; }
+    .form-actions, .toolbar { display:flex; gap:9px; align-items:center; flex-wrap:wrap; margin-top:13px; }
+    button, .file-label { border:0; border-radius:9px; padding:10px 14px; cursor:pointer; font-weight:650; min-height:40px; }
+    .primary { background:#225fc7; color:white; } .secondary { background:#edf0f5; color:#263247; }
+    .danger { background:#fff0ef; color:#a42d27; } button:disabled { opacity:.5; cursor:not-allowed; }
+    .toolbar { margin:0 0 12px; }
+    .toolbar input { flex:1; min-width:170px; margin:0; }
+    .toolbar select { width:auto; min-width:150px; margin:0; }
+    .table-wrap { overflow-x:auto; }
+    table { border-collapse:collapse; width:100%; min-width:760px; }
+    th, td { padding:12px 9px; border-bottom:1px solid #edf0f4; text-align:left; vertical-align:middle; font-size:.9rem; }
+    th { color:#687083; font-size:.78rem; font-weight:700; }
+    tr.purchased td { color:#7b8290; } tr.purchased .product-name { text-decoration:line-through; }
+    .check { width:20px; height:20px; accent-color:#23834d; cursor:pointer; }
+    .price { white-space:nowrap; font-variant-numeric:tabular-nums; }
+    .row-actions { display:flex; gap:6px; }
+    .row-actions button { padding:7px 9px; min-height:34px; font-size:.8rem; }
+    .empty { text-align:center; padding:30px 12px; color:#687083; }
+    .note { color:#687083; font-size:.82rem; line-height:1.6; margin:12px 0 0; }
+    .status { color:#176c3a; font-size:.85rem; min-height:1.3em; }
+    .hidden { display:none !important; }
+    @media (max-width:700px) {
+      body { padding:13px; }
+      h1 { font-size:1.4rem; }
+      .stats { grid-template-columns:repeat(2,minmax(0,1fr)); }
+      .form-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+      .form-grid .wide { grid-column:1 / -1; }
+      .panel { padding:14px; border-radius:13px; }
+      .toolbar select { flex:1; min-width:130px; }
+    }
+    @media (max-width:420px) { .form-grid { grid-template-columns:1fr; } .form-grid .wide { grid-column:auto; } }
+  </style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div>
+      <h1>Event Checklist</h1>
+      <p class="sub">即売会・購入品チェックリスト</p>
+    </div>
+    <span class="pill">第1版 · ローカル保存</span>
+  </header>
+
+  <section class="panel">
+    <h2>予算管理</h2>
+    <div class="form-grid" style="grid-template-columns:minmax(0,1fr);">
+      <label style="max-width:320px;">イベント予算（円）
+        <input id="budget" type="number" min="0" step="1" value="20000">
+      </label>
+    </div>
+    <div class="stats" style="margin-top:14px;">
+      <div class="stat"><div class="label">予定総額</div><div class="value" id="plannedTotal">¥0</div></div>
+      <div class="stat"><div class="label">購入済み金額</div><div class="value" id="spentTotal">¥0</div></div>
+      <div class="stat"><div class="label">残予算</div><div class="value" id="remainingTotal">¥20,000</div></div>
+      <div class="stat"><div class="label">購入済み件数</div><div class="value" id="itemProgress">0 / 0</div></div>
+    </div>
+    <div class="progress" aria-label="予算使用率"><div id="progressBar"></div></div>
+    <p class="note">予定総額は全商品の「予定価格 × 予定数」、購入済み金額はチェック済み商品の「実際の購入価格 × 購入数」の合計です。</p>
+  </section>
+
+  <section class="panel">
+    <h2 id="formTitle">購入品を追加</h2>
+    <form id="itemForm">
+      <div class="form-grid">
+        <label>ホール・エリア
+          <input id="hall" placeholder="例：東5" maxlength="40">
+        </label>
+        <label>配置番号
+          <input id="booth" placeholder="例：A-12a" maxlength="40">
+        </label>
+        <label>サークル名 <span style="color:#b3261e">*</span>
+          <input id="circle" required placeholder="例：サークルA" maxlength="120">
+        </label>
+        <label class="wide">商品名 <span style="color:#b3261e">*</span>
+          <input id="product" required placeholder="例：新刊セット" maxlength="160">
+        </label>
+        <label>予定価格（円）
+          <input id="plannedPrice" type="number" min="0" step="1" value="0" required>
+        </label>
+        <label>予定数
+          <input id="plannedQty" type="number" min="1" step="1" value="1" required>
+        </label>
+        <label>実際の購入価格（円）
+          <input id="actualPrice" type="number" min="0" step="1" placeholder="購入後に入力">
+        </label>
+        <label>購入数
+          <input id="actualQty" type="number" min="0" step="1" value="1" required>
+        </label>
+      </div>
+      <div class="form-actions">
+        <button class="primary" type="submit" id="saveButton">商品を追加</button>
+        <button class="secondary hidden" type="button" id="cancelEdit">編集をキャンセル</button>
+      </div>
+      <p class="note">実際の購入価格が未入力の場合、購入済みにチェックすると予定価格を購入額として計算します。実際の価格を入力すれば、その金額を優先します。</p>
+    </form>
+  </section>
+
+  <section class="panel">
+    <h2>購入リスト</h2>
+    <div class="toolbar">
+      <input id="search" type="search" placeholder="サークル名・商品名・配置番号で検索" aria-label="購入品を検索">
+      <select id="filter" aria-label="購入状態で絞り込み">
+        <option value="all">すべて表示</option>
+        <option value="todo">未購入のみ</option>
+        <option value="done">購入済みのみ</option>
+      </select>
+      <select id="sort" aria-label="並べ替え">
+        <option value="booth">配置番号順</option>
+        <option value="hall">ホール → 配置番号順</option>
+        <option value="circle">サークル名順</option>
+        <option value="status">未購入を先に表示</option>
+      </select>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>購入</th><th>配置</th><th>サークル・商品</th><th>予定額</th><th>購入額</th><th>操作</th></tr></thead>
+        <tbody id="itemRows"></tbody>
+      </table>
+      <div id="emptyState" class="empty">まだ購入品がありません。上のフォームから追加してください。</div>
+    </div>
+    <div class="toolbar">
+      <button id="exportCsv" class="secondary" type="button">CSVを書き出す</button>
+      <label class="file-label secondary" for="importCsv" style="display:inline-flex;align-items:center;">CSVを取り込む</label>
+      <input id="importCsv" type="file" accept=".csv,text/csv" class="hidden">
+    </div>
+    <p id="status" class="status" role="status"></p>
+    <p class="note">データはこのブラウザ内に保存されます。ブラウザのデータ消去などで失われる場合があるため、定期的にCSVを書き出してください。Excelファイル（.xlsx）の取り込みは次の段階で追加します。</p>
+  </section>
+</div>
+<script>
+(() => {
+  "use strict";
+  const STORAGE_KEY = "eventChecklist.v1";
+  const $ = id => document.getElementById(id);
+  let items = [];
+  let editingId = null;
+
+  const yen = n => "¥" + Math.round(Number(n) || 0).toLocaleString("ja-JP");
+  const numberValue = id => Number($(id).value);
+  const safeText = value => String(value ?? "");
+  const actualUnitPrice = item => item.actualPrice === null || item.actualPrice === undefined || item.actualPrice === "" ? Number(item.plannedPrice) || 0 : Number(item.actualPrice) || 0;
+  const plannedCost = item => (Number(item.plannedPrice) || 0) * (Number(item.plannedQty) || 0);
+  const actualCost = item => item.purchased ? actualUnitPrice(item) * (Number(item.actualQty) || 0) : 0;
+
+  function save() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({items, budget: numberValue("budget") || 0}));
+      $("status").textContent = "保存しました。";
+    } catch (e) {
+      $("status").textContent = "保存できませんでした。CSVを書き出してバックアップしてください。";
+    }
+  }
+  function load() {
+    try {
+      const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+      if (data && Array.isArray(data.items)) {
+        items = data.items;
+        $("budget").value = Number(data.budget) >= 0 ? Number(data.budget) : 20000;
+      }
+    } catch (e) { items = []; }
+  }
+  function render() {
+    const planned = items.reduce((sum, item) => sum + plannedCost(item), 0);
+    const spent = items.reduce((sum, item) => sum + actualCost(item), 0);
+    const budget = Math.max(0, numberValue("budget") || 0);
+    const purchasedCount = items.filter(item => item.purchased).length;
+    $("plannedTotal").textContent = yen(planned);
+    $("spentTotal").textContent = yen(spent);
+    $("remainingTotal").textContent = (budget - spent < 0 ? "−" : "") + yen(Math.abs(budget - spent));
+    $("itemProgress").textContent = `${purchasedCount} / ${items.length}`;
+    $("progressBar").style.width = Math.min(100, budget > 0 ? spent / budget * 100 : (spent > 0 ? 100 : 0)) + "%";
+
+    const query = $("search").value.trim().toLocaleLowerCase();
+    const filter = $("filter").value;
+    const sort = $("sort").value;
+    const visible = items.filter(item => {
+      const text = [item.hall, item.booth, item.circle, item.product].join(" ").toLocaleLowerCase();
+      return (!query || text.includes(query)) && (filter === "all" || (filter === "done" ? item.purchased : !item.purchased));
+    });
+    visible.sort((a, b) => {
+      if (sort === "circle") return safeText(a.circle).localeCompare(safeText(b.circle), "ja") || safeText(a.product).localeCompare(safeText(b.product), "ja");
+      if (sort === "status") return Number(a.purchased) - Number(b.purchased) || safeText(a.hall).localeCompare(safeText(b.hall), "ja") || safeText(a.booth).localeCompare(safeText(b.booth), "ja");
+      if (sort === "hall") return safeText(a.hall).localeCompare(safeText(b.hall), "ja", {numeric:true}) || safeText(a.booth).localeCompare(safeText(b.booth), "ja", {numeric:true});
+      return safeText(a.booth).localeCompare(safeText(b.booth), "ja", {numeric:true});
+    });
+
+    $("itemRows").replaceChildren();
+    $("emptyState").classList.toggle("hidden", visible.length > 0);
+    if (visible.length === 0 && items.length > 0) $("emptyState").textContent = "条件に一致する購入品がありません。";
+    else $("emptyState").textContent = "まだ購入品がありません。上のフォームから追加してください。";
+
+    for (const item of visible) {
+      const tr = document.createElement("tr");
+      if (item.purchased) tr.classList.add("purchased");
+      const checkTd = document.createElement("td");
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox"; checkbox.className = "check"; checkbox.checked = Boolean(item.purchased);
+      checkbox.setAttribute("aria-label", `${item.circle} ${item.product} を購入済みにする`);
+      checkbox.addEventListener("change", () => { item.purchased = checkbox.checked; save(); render(); });
+      checkTd.append(checkbox); tr.append(checkTd);
+
+      const locationTd = document.createElement("td");
+      locationTd.textContent = [item.hall, item.booth].filter(Boolean).join(" / ") || "—";
+      tr.append(locationTd);
+
+      const detailsTd = document.createElement("td");
+      const circle = document.createElement("div"); circle.style.fontWeight = "700"; circle.textContent = item.circle;
+      const product = document.createElement("div"); product.className = "product-name"; product.style.marginTop = "4px"; product.textContent = item.product;
+      detailsTd.append(circle, product); tr.append(detailsTd);
+
+      const plannedTd = document.createElement("td"); plannedTd.className = "price"; plannedTd.textContent = yen(plannedCost(item)); tr.append(plannedTd);
+      const actualTd = document.createElement("td"); actualTd.className = "price"; actualTd.textContent = item.purchased ? yen(actualCost(item)) : "—"; tr.append(actualTd);
+
+      const actionsTd = document.createElement("td"); const actions = document.createElement("div"); actions.className = "row-actions";
+      const edit = document.createElement("button"); edit.type = "button"; edit.className = "secondary"; edit.textContent = "編集"; edit.addEventListener("click", () => startEdit(item.id));
+      const del = document.createElement("button"); del.type = "button"; del.className = "danger"; del.textContent = "削除"; del.addEventListener("click", () => {
+        if (confirm(`「${item.circle} / ${item.product}」を削除しますか？`)) { items = items.filter(x => x.id !== item.id); if (editingId === item.id) resetForm(); save(); render(); }
+      });
+      actions.append(edit, del); actionsTd.append(actions); tr.append(actionsTd);
+      $("itemRows").append(tr);
+    }
+  }
+  function resetForm() {
+    editingId = null; $("itemForm").reset();
+    $("plannedPrice").value = "0"; $("plannedQty").value = "1"; $("actualQty").value = "1";
+    $("formTitle").textContent = "購入品を追加"; $("saveButton").textContent = "商品を追加";
+    $("cancelEdit").classList.add("hidden");
+  }
+  function startEdit(id) {
+    const item = items.find(x => x.id === id); if (!item) return;
+    editingId = id;
+    $("hall").value = item.hall || ""; $("booth").value = item.booth || "";
+    $("circle").value = item.circle || ""; $("product").value = item.product || "";
+    $("plannedPrice").value = item.plannedPrice ?? 0; $("plannedQty").value = item.plannedQty ?? 1;
+    $("actualPrice").value = item.actualPrice ?? ""; $("actualQty").value = item.actualQty ?? 1;
+    $("formTitle").textContent = "購入品を編集"; $("saveButton").textContent = "変更を保存";
+    $("cancelEdit").classList.remove("hidden");
+    $("formTitle").scrollIntoView({behavior:"smooth", block:"start"});
+  }
+  $("itemForm").addEventListener("submit", event => {
+    event.preventDefault();
+    const plannedPrice = numberValue("plannedPrice"), plannedQty = numberValue("plannedQty"), actualQty = numberValue("actualQty");
+    if (plannedPrice < 0 || !Number.isInteger(plannedPrice) || plannedQty < 1 || !Number.isInteger(plannedQty) || actualQty < 0 || !Number.isInteger(actualQty)) {
+      alert("価格は0以上の整数、予定数は1以上の整数、購入数は0以上の整数で入力してください。"); return;
+    }
+    const actualRaw = $("actualPrice").value.trim();
+    if (actualRaw !== "" && (!Number.isInteger(Number(actualRaw)) || Number(actualRaw) < 0)) { alert("実際の購入価格は0以上の整数で入力してください。"); return; }
+    const old = editingId ? items.find(x => x.id === editingId) : null;
+    const item = {
+      id: editingId || (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random()),
+      hall: $("hall").value.trim(), booth: $("booth").value.trim(),
+      circle: $("circle").value.trim(), product: $("product").value.trim(),
+      plannedPrice, plannedQty, actualPrice: actualRaw === "" ? null : Number(actualRaw),
+      actualQty, purchased: old ? Boolean(old.purchased) : false
+    };
+    if (editingId) items = items.map(x => x.id === editingId ? item : x); else items.push(item);
+    resetForm(); save(); render();
+  });
+  $("cancelEdit").addEventListener("click", resetForm);
+  $("budget").addEventListener("input", () => { render(); save(); });
+  ["search","filter","sort"].forEach(id => $(id).addEventListener(id === "search" ? "input" : "change", render));
+
+  function csvEscape(value) {
+    const s = String(value ?? "");
+    return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }
+  function exportCsv() {
+    const headers = ["ホール","配置番号","サークル名","商品名","予定価格","予定数","実際の購入価格","購入数","購入済み"];
+    const rows = items.map(x => [x.hall,x.booth,x.circle,x.product,x.plannedPrice,x.plannedQty,x.actualPrice ?? "",x.actualQty,x.purchased ? "はい" : "いいえ"]);
+    const csv = "\uFEFF" + [headers, ...rows].map(row => row.map(csvEscape).join(",")).join("\r\n");
+    const url = URL.createObjectURL(new Blob([csv], {type:"text/csv;charset=utf-8"}));
+    const a = document.createElement("a"); a.href = url; a.download = "event-checklist.csv"; a.click(); URL.revokeObjectURL(url);
+    $("status").textContent = "CSVを書き出しました。";
+  }
+  $("exportCsv").addEventListener("click", exportCsv);
+
+  function parseCsv(text) {
+    text = text.replace(/^\uFEFF/, "");
+    const rows = []; let row = [], field = "", quoted = false;
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i], next = text[i+1];
+      if (quoted) {
+        if (c === '"' && next === '"') { field += '"'; i++; }
+        else if (c === '"') quoted = false;
+        else field += c;
+      } else {
+        if (c === '"' && field === "") quoted = true;
+        else if (c === ",") { row.push(field); field = ""; }
+        else if (c === "\n") { row.push(field.replace(/\r$/, "")); if (row.some(v => v.trim() !== "")) rows.push(row); row = []; field = ""; }
+        else field += c;
+      }
+    }
+    row.push(field.replace(/\r$/, "")); if (row.some(v => v.trim() !== "")) rows.push(row);
+    if (quoted) throw new Error("CSVの引用符が閉じられていません。");
+    return rows;
+  }
+  $("importCsv").addEventListener("change", async event => {
+    const file = event.target.files[0]; if (!file) return;
+    try {
+      let text = await file.text();
+      // Basic UTF-8 first; Excel CSV may be Shift_JIS and will be added with a dedicated decoder later.
+      const rows = parseCsv(text);
+      if (rows.length < 2) throw new Error("データ行がありません。1行目に列名を含めてください。");
+      const headers = rows[0].map(h => h.trim());
+      const find = (...names) => headers.findIndex(h => names.includes(h));
+      const idx = {
+        hall:find("ホール","エリア"), booth:find("配置番号","配置","スペース"), circle:find("サークル名","サークル","出展者名"),
+        product:find("商品名","商品"), price:find("予定価格","価格","単価"), qty:find("予定数","数量","個数")
+      };
+      if (idx.circle < 0 || idx.product < 0 || idx.price < 0) throw new Error("列名に「サークル名」「商品名」「予定価格」が必要です。サンプルCSVの列名を確認してください。");
+      const imported = [];
+      for (let i = 1; i < rows.length; i++) {
+        const r = rows[i];
+        const get = key => idx[key] < 0 ? "" : (r[idx[key]] || "").trim();
+        const price = Number(get("price").replace(/[¥￥,\s]/g, ""));
+        const qty = idx.qty < 0 || get("qty") === "" ? 1 : Number(get("qty"));
+        if (!get("circle") || !get("product") || !Number.isInteger(price) || price < 0 || !Number.isInteger(qty) || qty < 1) {
+          throw new Error(`${i+1}行目を確認してください。サークル名・商品名・価格・予定数を正しく入力してください。`);
+        }
+        imported.push({
+          id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random() + i,
+          hall:get("hall"), booth:get("booth"), circle:get("circle"), product:get("product"),
+          plannedPrice:price, plannedQty:qty, actualPrice:null, actualQty:qty, purchased:false
+        });
+      }
+      if (!confirm(`${imported.length}件を追加します。既存のリストは削除されません。取り込みますか？`)) return;
+      items.push(...imported); save(); render(); $("status").textContent = `${imported.length}件を取り込みました。`;
+    } catch (error) { alert("CSVを取り込めませんでした。\n" + error.message); }
+    finally { event.target.value = ""; }
+  });
+
+  load(); render();
+})();
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("./sw.js").catch(err => console.error("Service Worker registration failed:", err));
+    });
+  }
+</script>
+</body>
+</html>

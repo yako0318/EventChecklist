@@ -1,0 +1,26 @@
+{
+  "id": "./",
+  "name": "Event Checklist - 即売会購入品管理",
+  "short_name": "Event Check",
+  "description": "即売会の購入品、配置番号、購入状況、予算を管理するオフライン対応アプリ",
+  "lang": "ja",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f5f6f8",
+  "theme_color": "#f6f7f9",
+  "icons": [
+    {
+      "src": "./icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
